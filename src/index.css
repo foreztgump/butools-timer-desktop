@@ -1,0 +1,105 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root { /* Define variables for BOTH light (if ever needed) and dark */
+    --background: 0 0% 100%; /* Light background */
+    --foreground: 240 10% 3.9%; /* Light foreground */
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    /* Violet Accent for Light */
+    --primary: 262 84% 58%; /* violet-500 */
+    --primary-foreground: 0 0% 98%; /* White text on violet */
+
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 262 84% 58%; /* Violet focus ring */
+
+    --radius: 0.5rem;
+  }
+
+  .dark { /* Dark Theme Override */
+    --background: 240 10% 3.9%; /* Very dark background */
+    --foreground: 0 0% 90%; /* Light text -> Lighter Gray */
+
+    --card: 240 10% 6.9%; /* Slightly lighter card background */
+    --card-foreground: 0 0% 90%; /* Card text matches foreground */
+
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 90%; /* Popover text matches foreground */
+
+    /* Violet Accent for Dark */
+    --primary: 262 84% 68%; /* Lighter violet for dark bg (e.g., violet-400) */
+    --primary-foreground: 262 90% 15%; /* Dark text on light violet */
+
+    /* Darker secondary elements */
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 90%; /* Secondary text matches foreground */
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%; /* Grayish text */
+
+    /* Subtle hover/accent */
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 90%; /* Accent text matches foreground */
+
+    --destructive: 0 70% 50%; /* Adjusted destructive red */
+    --destructive-foreground: 0 0% 98%; /* Keep destructive text bright */
+
+    --border: 240 5% 25%; /* Dark borders -> Slightly Lighter Gray */
+    --input: 240 3.7% 15.9%; /* Dark input backgrounds */
+    --ring: 262 84% 68%; /* Violet focus ring (same as primary) */
+  }
+
+  /* --- Base Styles --- */
+  html, body, #root {
+    @apply h-full;
+  }
+  body {
+    /* Base font */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+      Arial, sans-serif;
+    /* Transparency note */
+    /* background-color: transparent; */ /* This might be needed if body bg overrides Electron transparency */
+  }
+  /* Ensure timer page container itself is transparent */
+  .timer-page-container {
+      @apply bg-transparent;
+  }
+}
+
+/* Optional: Style scrollbars for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--background) / 0.5); /* Semi-transparent track */
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground)); /* Muted color for thumb */
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--foreground) / 0.7); /* Lighter on hover */
+}
