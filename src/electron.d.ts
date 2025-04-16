@@ -40,6 +40,9 @@ export interface ElectronAPI {
   onGlobalStartTimer: (callback: (event: IpcRendererEvent) => void) => () => void;
   onGlobalStopTimer: (callback: (event: IpcRendererEvent) => void) => () => void;
 
+  // Add Listener for Logical Focus Indication
+  onTimerGainLogicalFocus: (callback: (event: IpcRendererEvent) => void) => () => void;
+
   // Global Audio Preferences (Renderer -> Main)
   setGlobalVolumeRequest: (volume: number) => void;
   toggleGlobalMuteRequest: () => void;

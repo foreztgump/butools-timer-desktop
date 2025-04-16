@@ -56,6 +56,10 @@ let lastTickTime = performance.now();
 // Increase interval to reduce frequency (e.g., 100ms = 10Hz)
 const INTERVAL_MS = 100; // Changed from 50
 
+// --- Keep On Top Interval Logic ---
+let keepOnTopIntervalId: NodeJS.Timeout | null = null;
+const KEEP_ON_TOP_INTERVAL_MS = 1000; // Check every 1 second
+
 // Helper to safely send messages to a timer window
 function sendToTimerWindow(instanceId: string, channel: string, ...args: any[]) {
   const window = activeTimerWindows.get(instanceId);
@@ -263,6 +267,7 @@ function createTimerWindow(timerState: ActiveTimer): void {
   timerWindow.on('ready-to-show', () => {
     // console.log(`[Main] Window ${timerState.instanceId} is ready-to-show. Showing now.`);
     timerWindow?.show();
+    startKeepOnTopInterval(); // Start keep-on-top interval when a timer shows
   });
 
   timerWindow.on('closed', () => {
@@ -289,6 +294,7 @@ function createTimerWindow(timerState: ActiveTimer): void {
     // Stop interval if this was the last timer
     if (activeTimerStates.size === 0) {
       stopMainInterval();
+      stopKeepOnTopInterval(); // Stop keep-on-top interval
     }
   });
 
@@ -827,6 +833,7 @@ app.on('window-all-closed', () => {
   // On macOS it's common to stay active until Cmd + Q
   // On other platforms, quit when all windows (including launcher) are closed.
   stopMainInterval(); // Ensure interval stops on quit
+  stopKeepOnTopInterval(); // Ensure keep-on-top interval stops on quit
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -883,15 +890,39 @@ ipcMain.on('open-external-url', (event, url: string) => {
 function indicateFocus(instanceId: string) {
   const window = activeTimerWindows.get(instanceId);
   if (window && !window.isDestroyed()) {
-    // Option 1: Briefly focus
-    // window.focus(); 
-    // Option 2: Flash frame (might not work well with frameless/transparent)
-    // window.flashFrame(true); 
-    // Option 3: Send an IPC message for the renderer to handle visual indication
-    // console.log(`[Main Focus] Indicating focus for ${instanceId}`);
-    // sendToTimerWindow(instanceId, 'timer-focus-indicated');
-    window.focus(); // Let's try focus first
+    // REMOVE: window.focus(); // Avoid fighting the game for OS focus
+    
+    // INSTEAD: Send an IPC message for the renderer to handle visual indication
+    console.log(`[Main Focus] Sending focus indication IPC to ${instanceId}`);
+    sendToTimerWindow(instanceId, 'timer-gain-logical-focus');
   }
 } 
 
-// --- END FILE --- Remove dangling code outside app.whenReady --- 
+// --- End Window Event Listeners --- 
+
+function startKeepOnTopInterval() {
+  if (keepOnTopIntervalId !== null || activeTimerWindows.size === 0) return; // Already running or no timers
+  console.log('[Main KeepOnTop] Starting interval.');
+  keepOnTopIntervalId = setInterval(() => {
+    // console.log('[Main KeepOnTop] Interval tick. Re-asserting alwaysOnTop.'); // Very noisy
+    activeTimerWindows.forEach((window, instanceId) => {
+      if (window && !window.isDestroyed()) {
+        // Use a higher level ('screen-saver') for potentially better results with games
+        if (!window.isAlwaysOnTop()) { // Only set if it somehow got unset
+            console.log(`[Main KeepOnTop] Re-applying alwaysOnTop for ${instanceId}`);
+            window.setAlwaysOnTop(true, 'screen-saver');
+        }
+        // Alternatively, always set it regardless of current state:
+        // window.setAlwaysOnTop(true, 'screen-saver');
+      }
+    });
+  }, KEEP_ON_TOP_INTERVAL_MS);
+}
+
+function stopKeepOnTopInterval() {
+  if (keepOnTopIntervalId !== null) {
+    console.log('[Main KeepOnTop] Stopping interval.');
+    clearInterval(keepOnTopIntervalId);
+    keepOnTopIntervalId = null;
+  }
+} 

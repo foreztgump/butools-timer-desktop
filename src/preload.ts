@@ -87,6 +87,14 @@ const electronAPI = {
     ipcRenderer.on('timer-created', callback);
     return () => ipcRenderer.removeListener('timer-created', callback);
   },
+
+  // --- NEW Listener for Logical Focus Indication ---
+  onTimerGainLogicalFocus: (callback: (event: IpcRendererEvent) => void) => {
+    const handler = (event: IpcRendererEvent) => callback(event);
+    ipcRenderer.on('timer-gain-logical-focus', handler);
+    return () => ipcRenderer.removeListener('timer-gain-logical-focus', handler);
+  }
+  // --- END NEW Listener ---
 };
 
 // Expose the API to the main world

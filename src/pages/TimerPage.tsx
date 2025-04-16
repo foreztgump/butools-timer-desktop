@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import type { ActiveTimer } from '../types/timerTypes';
 import Timer from '../components/Timer';
@@ -13,6 +13,9 @@ export const TimerPage: React.FC = () => {
   // Re-introduce local state for timer data and error
   const [timerState, setTimerState] = useState<ActiveTimer | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // State to manage the visual focus indication
+  const [isVisuallyFocused, setIsVisuallyFocused] = useState(false);
+  const focusTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Ref for timeout
 
   // --- Restore IPC listeners --- 
   // Fetch initial state on mount
@@ -98,6 +101,42 @@ export const TimerPage: React.FC = () => {
   }, [instanceId]); // Dependency array includes instanceId
   // --- End Global Start/Stop Listeners ---
 
+  // --- Listener for Logical Focus Indication --- 
+  useEffect(() => {
+    if (!instanceId) return;
+
+    const handleGainLogicalFocus = () => {
+      console.log(`[TimerPage ${instanceId}] Received logical focus indication.`);
+      setIsVisuallyFocused(true);
+
+      // Clear any existing timeout before setting a new one
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+      }
+
+      // Set a timeout to remove the visual focus after a short period
+      focusTimeoutRef.current = setTimeout(() => {
+        setIsVisuallyFocused(false);
+        focusTimeoutRef.current = null; // Clear the ref after timeout runs
+      }, 750); // Duration of the visual indication (e.g., 750ms)
+    };
+
+    const cleanup = window.electronAPI.onTimerGainLogicalFocus(handleGainLogicalFocus);
+
+    // Cleanup function for this effect
+    return () => {
+      console.log(`[TimerPage ${instanceId}] Cleaning up logical focus listener.`);
+      if (typeof cleanup === 'function') {
+        cleanup();
+      }
+      // Also clear the timeout if the component unmounts during the focus indication
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+      }
+    };
+  }, [instanceId]);
+  // --- End Listener for Logical Focus Indication ---
+
   // Recalculate warning state here based on local timerState
   const isFinished = timerState ? timerState.timeLeft <= 0 : false;
   const yellowThreshold = timerState?.preset.yellowThreshold ?? 10;
@@ -138,7 +177,7 @@ export const TimerPage: React.FC = () => {
       {/* Change div to motion.div and add animation props */}
       <motion.div
         key={instanceId} // Add key for AnimatePresence to track
-        className="timer-page-container h-full p-1 cursor-pointer" // Keep padding, ensure no background class, Add cursor-pointer
+        className={`timer-page-container h-full p-1 cursor-pointer ${isVisuallyFocused ? 'ring-4 ring-blue-500 ring-inset' : ''}`} // Add conditional ring style
         initial={{ opacity: 0, scale: 0.95 }} // Initial state (invisible, slightly smaller)
         animate={{ opacity: 1, scale: 1 }}    // Animate to state (visible, normal size)
         exit={{ opacity: 0, scale: 0.95 }}     // Exit state (invisible, slightly smaller)
