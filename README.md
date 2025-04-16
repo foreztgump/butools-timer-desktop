@@ -48,13 +48,29 @@ You can download the latest pre-built version for your operating system from the
 
 ## Keyboard Shortcuts
 
-Launch timer presets instantly using these global shortcuts:
+**Launch Timer Presets:**
+
+Quickly launch timers using these global shortcuts:
 
 *   `Ctrl+Shift+B`: Backflow
 *   `Ctrl+Shift+F`: Fire
 *   `Ctrl+Shift+L`: Lightning
 *   `Ctrl+Shift+R`: Reflect
 *   `Ctrl+Shift+S`: Fuse Storm
+
+**Control Active Timers (v1.1.0+):**
+
+These shortcuts allow you to control timers without directly clicking them, ideal for overlays:
+
+1.  **Cycle Selection:** Use these keys to select which timer the control keys will affect:
+    *   `Ctrl+Shift+Right Arrow`: Select the **next** open timer.
+    *   `Ctrl+Shift+Left Arrow`: Select the **previous** open timer.
+    *(The selected window will briefly focus for visual confirmation)*
+
+2.  **Control Selected Timer:**
+    *   `Ctrl+Shift+Up Arrow`: **Start / Resume** the selected timer.
+    *   `Ctrl+Shift+Down Arrow`: **Pause** the selected timer.
+    *   `Ctrl+Shift+End`: **Reset** the selected timer.
 
 ## Built With
 
