@@ -9,6 +9,9 @@ import { Button } from './ui/button';
 import { Slider } from '@/components/ui/slider'; // Use Shadcn Slider (Corrected Path)
 import { Settings, X, Play, Pause, RotateCcw, Volume2, VolumeX, Mic, Bell, GripVertical } from 'lucide-react'; // Add GripVertical
 
+// Create motion versions of components
+const MotionButton = motion(Button); // Create motion version of Button
+
 interface TimerProps {
   timer: ActiveTimer;
 }
@@ -153,7 +156,7 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
       borderWidth: '2px',
       color: "hsl(var(--muted-foreground))",
       scale: 1,
-      transition: { duration: 0.5 }
+      transition: { duration: 0.4, ease: "easeOut" }
      },
   };
 
@@ -190,9 +193,13 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
         className="timer-drag-handle p-1.5 flex justify-between items-center /*bg-black/30 backdrop-blur-sm*/ flex-shrink-0 cursor-grab" // Keep header background removed
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
-        {/* Optional: Add a subtle drag indicator - Restore fixed size */}
-        <GripVertical size={16} className="text-muted-foreground/50" />
-        <span className="text-xs font-medium truncate px-2 text-muted-foreground flex-grow text-center">
+        {/* Drag handle icon - Make responsive */}
+        <GripVertical className="text-muted-foreground/50 w-[clamp(0.75rem,6vw,1rem)] h-auto flex-shrink-0" /> 
+        {/* Title - Make responsive */}
+        <span 
+           className="font-medium truncate px-2 text-muted-foreground flex-grow text-center text-[clamp(0.6rem,8vw,1.1rem)]" 
+           title={timer.preset.title} // Add title attribute for full name on hover
+         >
           {timer.preset.title}
         </span>
         <Button
@@ -203,8 +210,8 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
           title="Close Timer"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
-          {/* Restore fixed size */}
-          <X size={16} />
+          {/* Close icon - Make responsive */}
+          <X className="w-[clamp(0.75rem,6vw,1rem)] h-auto" /> 
         </Button>
       </div>
 
@@ -234,6 +241,8 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.15 }}
+                  whileHover={{ scale: 1.1 }} // Add hover effect to wrapper
+                  whileTap={{ scale: 0.95 }}   // Add tap effect to wrapper
                 >
                    {/* Responsive Button Size */}
                   <Button variant="secondary" size="icon" onClick={handlePause} title="Pause Timer" className="rounded-full shadow-md h-[clamp(1.75rem,18vw,3rem)] w-[clamp(1.75rem,18vw,3rem)]">
@@ -248,6 +257,8 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
                    animate={{ opacity: 1, scale: 1 }}
                    exit={{ opacity: 0, scale: 0.8 }}
                    transition={{ duration: 0.15 }}
+                   whileHover={{ scale: 1.1 }} // Add hover effect to wrapper
+                   whileTap={{ scale: 0.95 }}   // Add tap effect to wrapper
                 >
                    {/* Responsive Button Size */}
                   <Button variant="default" size="icon" onClick={handleStart} title="Start Timer" className="rounded-full shadow-md shadow-primary/30 h-[clamp(1.75rem,18vw,3rem)] w-[clamp(1.75rem,18vw,3rem)]">
@@ -257,10 +268,19 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
                  </motion.div>
               )}
             </AnimatePresence>
-            {/* Reset Button */}
-            <Button variant="outline" size="icon" onClick={handleReset} title="Reset Timer" className="rounded-full h-[clamp(1.75rem,18vw,3rem)] w-[clamp(1.75rem,18vw,3rem)]">
-              <RotateCcw className="w-2/3 h-auto" />
-            </Button>
+            {/* Reset Button - Use MotionButton */}
+            <MotionButton 
+               variant="outline" 
+               size="icon" 
+               onClick={handleReset} 
+               title="Reset Timer" 
+               className="rounded-full h-[clamp(1.75rem,18vw,3rem)] w-[clamp(1.75rem,18vw,3rem)]"
+               whileHover={{ scale: 1.1, transition: { duration: 0.1 } }} // Hover effect
+               whileTap={{ scale: 0.9, transition: { duration: 0.1 } }}    // Tap effect
+            >
+               {/* Reset Icon - Ensure responsive */}
+               <RotateCcw className="w-2/3 h-auto" /> 
+            </MotionButton>
           </div>
 
           {/* Audio Controls Group */}
@@ -268,16 +288,19 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
           <div className="flex items-center space-x-3"> 
              {/* Mute/Volume Group */}
              <div className="flex items-center space-x-1.5 flex-grow min-w-[80px]"> {/* Add min-width */} 
-                <Button
-                  variant="ghost" // Use ghost for less emphasis
+                {/* Mute/Unmute Button - Use MotionButton */}
+                <MotionButton
+                  variant="ghost" 
                   size="icon"
                   onClick={handleMuteToggle}
                   className="text-muted-foreground hover:text-foreground h-[clamp(1.25rem,14vw,2rem)] w-[clamp(1.25rem,14vw,2rem)]"
                   title={timer.isMuted ? 'Unmute' : 'Mute'}
+                  whileHover={{ scale: 1.15, transition: { duration: 0.1 } }} // Hover effect
+                  whileTap={{ scale: 0.9, transition: { duration: 0.1 } }}    // Tap effect
                 >
-                  {/* Responsive Icon */}
-                  {timer.isMuted ? <VolumeX className="w-2/3 h-auto" /> : <Volume2 className="w-2/3 h-auto" />}
-                </Button>
+                   {/* Mute/Unmute Icons - Ensure responsive */}
+                   {timer.isMuted ? <VolumeX className="w-2/3 h-auto" /> : <Volume2 className="w-2/3 h-auto" />} 
+                 </MotionButton>
                 {/* Use Shadcn Slider for Volume */}
                 <Slider
                   value={[timer.isMuted ? 0 : timer.volume]}
@@ -293,28 +316,30 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
 
             {/* Audio Mode Group */}
             <div className="flex items-center border border-input rounded-md p-0.5">
-               {/* Mic/Bell Buttons */}
-               <Button
+               {/* Mic Button - Use MotionButton */}
+               <MotionButton
                   variant={timer.audioMode === 'voice' ? 'secondary' : 'ghost'}
                   size="icon"
                   onClick={() => handleAudioModeChange('voice')}
-                  className="rounded-sm h-[clamp(1.1rem,12vw,1.75rem)] w-[clamp(1.1rem,12vw,1.75rem)]" // Slightly smaller clamp for these
+                  className="rounded-sm h-[clamp(1.1rem,12vw,1.75rem)] w-[clamp(1.1rem,12vw,1.75rem)]"
                   title="Voice Mode"
+                  whileHover={{ scale: 1.1, backgroundColor: 'hsl(var(--secondary))' , transition: { duration: 0.1 } }} // Hover
+                  whileTap={{ scale: 0.9, transition: { duration: 0.1 } }}    // Tap
                 >
-                  {/* Responsive Icon */}
-                  <Mic className="w-2/3 h-auto" />
-               </Button>
-               {/* Responsive Button Size */}
-               <Button
+                   <Mic className="w-2/3 h-auto" /> 
+               </MotionButton>
+               {/* Bell Button - Use MotionButton */}
+               <MotionButton
                   variant={timer.audioMode === 'beep' ? 'secondary' : 'ghost'}
                   size="icon"
                   onClick={() => handleAudioModeChange('beep')}
-                  className="rounded-sm h-[clamp(1.1rem,12vw,1.75rem)] w-[clamp(1.1rem,12vw,1.75rem)]" // Slightly smaller clamp for these
+                  className="rounded-sm h-[clamp(1.1rem,12vw,1.75rem)] w-[clamp(1.1rem,12vw,1.75rem)]"
                   title="Beep Mode"
+                  whileHover={{ scale: 1.1, backgroundColor: 'hsl(var(--secondary))', transition: { duration: 0.1 } }} // Hover
+                  whileTap={{ scale: 0.9, transition: { duration: 0.1 } }}    // Tap
                 >
-                  {/* Responsive Icon */}
-                  <Bell className="w-2/3 h-auto" />
-               </Button>
+                   <Bell className="w-2/3 h-auto" /> 
+               </MotionButton>
              </div>
            </div>
         </div>
@@ -323,4 +348,5 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
   );
 };
 
-export default Timer;
+// Wrap the default export with React.memo
+export default React.memo(Timer);

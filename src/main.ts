@@ -59,7 +59,8 @@ let globalIsMuted = false; // Default mute state
 // --- Timer Interval Logic ---
 let mainIntervalId: NodeJS.Timeout | null = null;
 let lastTickTime = performance.now();
-const INTERVAL_MS = 50;
+// Increase interval to reduce frequency (e.g., 100ms = 10Hz)
+const INTERVAL_MS = 100; // Changed from 50
 
 // Helper to safely send messages to a timer window
 function sendToTimerWindow(instanceId: string, channel: string, ...args: any[]) {

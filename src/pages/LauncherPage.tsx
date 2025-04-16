@@ -6,7 +6,7 @@ import useTimersStore from '../store/timersStore'; // If needed for displaying a
 import { Button } from '@/components/ui/button'; // Shadcn Button
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Use Card
 import { Slider } from '@/components/ui/slider'; // Assuming you have Shadcn Slider installed
-import { Volume2, VolumeX, PlusCircle, TimerIcon, X } from 'lucide-react'; // Add icons
+import { Volume2, VolumeX, PlusCircle, TimerIcon, X, HelpCircle } from 'lucide-react'; // Add icons
 import { cn } from '@/lib/utils';
 
 // No explicit type needed, TS will infer from global Window type
@@ -127,20 +127,23 @@ export const LauncherPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Add Timer Section (Back to single column) */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <PlusCircle className="w-5 h-5" />
-                Launch New Timer
-              </CardTitle>
-            </CardHeader>
-            {/* Keep reduced padding */}
-            <CardContent className="flex justify-center py-4 px-6">
-              {/* AddTimerButton handles the dropdown */}
-              <AddTimerButton />
-            </CardContent>
-          </Card>
+          {/* Add Timer Section - Minimal */}
+          {/* Removed Card and CardContent wrappers */}
+          {/* Added gap-2 for spacing between buttons */}
+          <div className="flex justify-center items-center py-2 gap-2"> 
+            {/* Made AddTimerButton larger and default variant */}
+            <AddTimerButton size="lg" variant="default" />
+            {/* Changed FAQ button to secondary variant and added icon */}
+            <Button
+              variant="secondary" 
+              size="lg" // Match AddTimerButton size
+              onClick={() => api.openExternalUrl('https://butools.xyz/timers')}
+              className="flex items-center gap-1" // Added for icon alignment
+            >
+              <HelpCircle className="h-4 w-4" /> {/* Add Icon */}
+              FAQ
+            </Button>
+          </div>
 
           {/* Active Timers Section - Now includes Global Audio Controls in Header */}
           <Card>

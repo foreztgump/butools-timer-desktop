@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import type { ActiveTimer } from '../types/timerTypes';
 import Timer from '../components/Timer';
 import useTimersStore from '../store/timersStore';
-import { motion, Variants } from 'framer-motion'; // Import motion and Variants
+import { motion, Variants, AnimatePresence } from 'framer-motion'; // Import AnimatePresence
 
 // Define variants type (can be simpler than Timer's)
 type TimerVisualVariant = "normal" | "yellow" | "red" | "finished";
@@ -99,13 +99,20 @@ export const TimerPage: React.FC = () => {
   // console.log('[TimerPage] Current calculated variant:', currentVariant);
 
   return (
-    // This div now ONLY provides padding. Background/border handled by Timer component.
-    <div
-      className="timer-page-container h-full p-1" // Keep padding, ensure no background class
-      // REMOVED variants, animate, initial props
-    >
-      {/* Timer component is now visually nested inside the padding area */}
-      <Timer timer={timerState} />
-    </div>
+    // Wrap the container with AnimatePresence
+    <AnimatePresence>
+      {/* Change div to motion.div and add animation props */}
+      <motion.div
+        key={instanceId} // Add key for AnimatePresence to track
+        className="timer-page-container h-full p-1" // Keep padding, ensure no background class
+        initial={{ opacity: 0, scale: 0.95 }} // Initial state (invisible, slightly smaller)
+        animate={{ opacity: 1, scale: 1 }}    // Animate to state (visible, normal size)
+        exit={{ opacity: 0, scale: 0.95 }}     // Exit state (invisible, slightly smaller)
+        transition={{ duration: 0.2, ease: "easeOut" }} // Animation duration/easing
+      >
+        {/* Timer component is now visually nested inside the padding area */}
+        <Timer timer={timerState} />
+      </motion.div>
+    </AnimatePresence>
   );
 }; 
