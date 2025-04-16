@@ -61,11 +61,26 @@ const electronAPI = {
     return () => ipcRenderer.removeListener('timer-closed', callback);
   },
 
-  // --- Listener API (Main -> Renderer) ---
+  // --- Listener API for Global Audio (Main -> Renderer) ---
   onGlobalAudioStateChanged: (callback: (event: IpcRendererEvent, state: { volume: number; isMuted: boolean }) => void) => {
     ipcRenderer.on('global-audio-state-changed', callback);
     return () => ipcRenderer.removeListener('global-audio-state-changed', callback);
   },
+
+  // --- NEW Listener API for Global Timer Controls (Main -> Renderer) ---
+  onGlobalStartTimer: (callback: (event: IpcRendererEvent) => void) => {
+    const handler = (event: IpcRendererEvent) => callback(event);
+    ipcRenderer.on('global-start-timer', handler);
+    // Return cleanup function
+    return () => ipcRenderer.removeListener('global-start-timer', handler);
+  },
+  onGlobalStopTimer: (callback: (event: IpcRendererEvent) => void) => {
+    const handler = (event: IpcRendererEvent) => callback(event);
+    ipcRenderer.on('global-stop-timer', handler);
+    // Return cleanup function
+    return () => ipcRenderer.removeListener('global-stop-timer', handler);
+  },
+  // --- END NEW Listener API ---
 
   // Listener for when a new timer is created
   onTimerCreated: (callback: (event: IpcRendererEvent, timerInfo: { instanceId: string; title: string }) => void) => {

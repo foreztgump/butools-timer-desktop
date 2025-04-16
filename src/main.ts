@@ -42,6 +42,8 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 const activeTimerStates = new Map<string, ActiveTimer>();
 const activeTimerWindows = new Map<string, BrowserWindow>();
 let launcherWindow: BrowserWindow | null = null; // Variable to store launcher window reference
+let lastFocusedTimerInstanceId: string | null = null; // Track the last focused timer
+let currentFocusCycleIndex = -1; // Track the index for keyboard cycling
 
 // --- Global Audio State (Managed by Main Process) ---
 let globalVolume = 1.0; // Default volume
@@ -590,6 +592,50 @@ app.whenReady().then(() => {
 
   // --- End New IPC Handlers ---
 
+  // --- Global Start/Stop IPC Handlers ---
+  // REMOVE - No longer needed as hotkeys trigger specific handlers directly
+  /*
+  ipcMain.on('global-start-timer', () => {
+    console.log('[Main IPC] Received global-start-timer');
+    let timerStarted = false;
+    activeTimerStates.forEach((timerState, instanceId) => {
+      if (timerState && !timerState.isRunning) {
+        console.log(`[Main IPC] Global Start: Starting timer: ${instanceId}`);
+        timerState.isRunning = true;
+        sendToTimerWindow(instanceId, 'timer-state-update', timerState);
+        timerStarted = true;
+      }
+    });
+    if (timerStarted) {
+      startMainInterval(); // Ensure interval is running if any timer started
+    }
+  });
+
+  ipcMain.on('global-stop-timer', () => {
+    console.log('[Main IPC] Received global-stop-timer');
+    activeTimerStates.forEach((timerState, instanceId) => {
+      if (timerState && timerState.isRunning) {
+        console.log(`[Main IPC] Global Stop: Pausing timer: ${instanceId}`);
+        timerState.isRunning = false;
+        sendToTimerWindow(instanceId, 'timer-state-update', timerState);
+      }
+    });
+  });
+  */
+  // --- End Global Start/Stop IPC Handlers ---
+
+  // --- IPC Handler for Timer Focus --- 
+  ipcMain.on('timer-window-focused', (event, instanceId: string) => {
+    console.log(`[Main IPC] Received 'timer-window-focused' message with instanceId: ${instanceId}`);
+    if (typeof instanceId === 'string' && instanceId.length > 0) {
+      lastFocusedTimerInstanceId = instanceId;
+      console.log(`[Main IPC] Successfully SET lastFocusedTimerInstanceId to: ${lastFocusedTimerInstanceId}`);
+    } else {
+      console.error(`[Main IPC] Received invalid instanceId (${instanceId}) for timer focus. Ignoring.`);
+    }
+  });
+  // --- End IPC Handler for Timer Focus --- 
+
   // Remove old listeners for single-window model
   ipcMain.removeHandler('get-window-position'); 
   ipcMain.removeAllListeners('window-move');
@@ -602,6 +648,7 @@ app.whenReady().then(() => {
   // --- Register Global Keyboard Shortcuts --- 
   // console.log('[Main] Registering global keyboard shortcuts...');
 
+  // --- Register preset shortcuts ---
   const registerShortcut = (accelerator: string, presetTitle: string) => {
     const success = globalShortcut.register(accelerator, () => {
       // console.log(`[Main Shortcut] ${accelerator} pressed. Finding preset: ${presetTitle}`);
@@ -610,7 +657,7 @@ app.whenReady().then(() => {
       if (preset) {
         createTimerFromPreset(preset);
       } else {
-        // console.error(`[Main Shortcut] Preset titled "${presetTitle}" not found!`);
+        // console.error(`[Main Shortcut] Preset titled "${presetTitle}" not found!');
       }
     });
     if (!success) {
@@ -622,10 +669,139 @@ app.whenReady().then(() => {
 
   registerShortcut('CommandOrControl+Shift+B', 'Backflow');
   registerShortcut('CommandOrControl+Shift+F', 'Fire');
-  // Add more shortcuts here following the pattern
   registerShortcut('CommandOrControl+Shift+L', 'Lightning');
   registerShortcut('CommandOrControl+Shift+R', 'Reflect');
   registerShortcut('CommandOrControl+Shift+S', 'Fuse Storm');
+  // --- End preset shortcuts ---
+
+
+  // --- Global Hotkeys for Start/Stop --- (Focus-based)
+  const registerControlShortcut = (accelerator: string, action: 'start' | 'stop') => {
+    const success = globalShortcut.register(accelerator, () => {
+      console.log(`[Main Shortcut] ${accelerator} pressed for action: ${action}`);
+      if (!lastFocusedTimerInstanceId) {
+        console.log('[Main Shortcut] No timer window focused. Ignoring action.');
+        return;
+      }
+
+      const targetInstanceId = lastFocusedTimerInstanceId;
+      const timerState = activeTimerStates.get(targetInstanceId);
+      
+      if (!timerState) {
+          console.error(`[Main Shortcut] State for focused timer ${targetInstanceId} not found!`);
+          return;
+      }
+
+      if (action === 'start') {
+        if (!timerState.isRunning) {
+            console.log(`[Main Shortcut] Starting focused timer: ${targetInstanceId}`);
+            timerState.isRunning = true;
+            sendToTimerWindow(targetInstanceId, 'timer-state-update', timerState);
+            startMainInterval(); // Ensure interval is running
+        } else {
+            console.log(`[Main Shortcut] Focused timer ${targetInstanceId} already running.`);
+        }
+      } else { // action === 'stop'
+        if (timerState.isRunning) {
+            console.log(`[Main Shortcut] Pausing focused timer: ${targetInstanceId}`);
+            timerState.isRunning = false;
+            sendToTimerWindow(targetInstanceId, 'timer-state-update', timerState);
+        } else {
+            console.log(`[Main Shortcut] Focused timer ${targetInstanceId} already paused.`);
+        }
+      }
+    });
+
+    if (!success) {
+      console.error(`[Main Shortcut] Failed to register control shortcut: ${accelerator}`);
+    } else {
+      console.log(`[Main Shortcut] Registered Control: ${accelerator} -> ${action} (Focus-based)`);
+    }
+  };
+
+  // --- Global Hotkey for Reset --- (Focus-based)
+  const registerResetShortcut = (accelerator: string) => {
+    const success = globalShortcut.register(accelerator, () => {
+      console.log(`[Main Shortcut] Reset (${accelerator}) pressed.`);
+      if (!lastFocusedTimerInstanceId) {
+        console.log('[Main Shortcut] No timer window focused for reset. Ignoring action.');
+        return;
+      }
+  
+      const targetInstanceId = lastFocusedTimerInstanceId;
+      const timerState = activeTimerStates.get(targetInstanceId);
+  
+      if (!timerState) {
+        console.error(`[Main Shortcut] State for focused timer ${targetInstanceId} not found for reset!`);
+        return;
+      }
+  
+      console.log(`[Main Shortcut] Resetting focused timer: ${targetInstanceId}`);
+      // Call the existing reset logic
+      if (timerState.isRunning) {
+        timerState.timeLeft = timerState.preset.initialTime || 0;
+      } else {
+        timerState.isRunning = false;
+        timerState.timeLeft = timerState.preset.initialTime || 0;
+      }
+      sendToTimerWindow(targetInstanceId, 'timer-state-update', timerState);
+    });
+  
+    if (!success) {
+      console.error(`[Main Shortcut] Failed to register reset shortcut: ${accelerator}`);
+    } else {
+      console.log(`[Main Shortcut] Registered Reset: ${accelerator} (Focus-based)`);
+    }
+  };
+
+  // --- Global Hotkeys for Cycling Focus ---
+  const registerCycleShortcut = (accelerator: string, direction: 'next' | 'prev') => {
+    const success = globalShortcut.register(accelerator, () => {
+      console.log(`[Main Shortcut] Cycle ${direction} pressed.`);
+      const openTimerIds = Array.from(activeTimerWindows.keys());
+      const numTimers = openTimerIds.length;
+  
+      if (numTimers === 0) {
+        console.log('[Main Shortcut] No timers open to cycle through.');
+        lastFocusedTimerInstanceId = null;
+        currentFocusCycleIndex = -1;
+        return;
+      }
+  
+      const currentIndex = lastFocusedTimerInstanceId ? openTimerIds.indexOf(lastFocusedTimerInstanceId) : -1;
+      let nextIndex;
+  
+      if (currentIndex === -1) {
+        nextIndex = 0;
+      } else {
+        if (direction === 'next') {
+          nextIndex = (currentIndex + 1) % numTimers;
+        } else { // direction === 'prev'
+          nextIndex = (currentIndex - 1 + numTimers) % numTimers;
+        }
+      }
+  
+      lastFocusedTimerInstanceId = openTimerIds[nextIndex];
+      currentFocusCycleIndex = nextIndex; // Update index tracking
+      console.log(`[Main Shortcut] Cycled focus to index ${nextIndex}: ${lastFocusedTimerInstanceId}`);
+  
+      indicateFocus(lastFocusedTimerInstanceId);
+    });
+  
+    if (!success) {
+      console.error(`[Main Shortcut] Failed to register cycle shortcut: ${accelerator}`);
+    } else {
+      console.log(`[Main Shortcut] Registered Cycle: ${accelerator} -> ${direction}`);
+    }
+  };
+
+  // --- Register the Control/Cycle/Reset Shortcuts ---
+  registerControlShortcut('CommandOrControl+Shift+Up', 'start');
+  registerControlShortcut('CommandOrControl+Shift+Down', 'stop');
+  registerResetShortcut('CommandOrControl+Shift+End');
+  registerCycleShortcut('CommandOrControl+Shift+Right', 'next');
+  registerCycleShortcut('CommandOrControl+Shift+Left', 'prev');
+  // --- End Shortcut Registrations ---
 
   // --- End Global Keyboard Shortcuts --- 
 
@@ -703,5 +879,19 @@ ipcMain.on('open-external-url', (event, url: string) => {
   }
 });
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here. 
+// Helper to visually indicate the focused window (optional)
+function indicateFocus(instanceId: string) {
+  const window = activeTimerWindows.get(instanceId);
+  if (window && !window.isDestroyed()) {
+    // Option 1: Briefly focus
+    // window.focus(); 
+    // Option 2: Flash frame (might not work well with frameless/transparent)
+    // window.flashFrame(true); 
+    // Option 3: Send an IPC message for the renderer to handle visual indication
+    // console.log(`[Main Focus] Indicating focus for ${instanceId}`);
+    // sendToTimerWindow(instanceId, 'timer-focus-indicated');
+    window.focus(); // Let's try focus first
+  }
+} 
+
+// --- END FILE --- Remove dangling code outside app.whenReady --- 

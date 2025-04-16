@@ -36,6 +36,10 @@ export interface ElectronAPI {
   onTimerClosed: (callback: (event: IpcRendererEvent, instanceId: string) => void) => () => void;
   onGlobalAudioStateChanged: (callback: (event: IpcRendererEvent, state: { volume: number; isMuted: boolean }) => void) => () => void;
 
+  // Add Global Timer Control Listeners
+  onGlobalStartTimer: (callback: (event: IpcRendererEvent) => void) => () => void;
+  onGlobalStopTimer: (callback: (event: IpcRendererEvent) => void) => () => void;
+
   // Global Audio Preferences (Renderer -> Main)
   setGlobalVolumeRequest: (volume: number) => void;
   toggleGlobalMuteRequest: () => void;

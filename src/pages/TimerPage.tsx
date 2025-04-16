@@ -64,6 +64,40 @@ export const TimerPage: React.FC = () => {
   }, [instanceId]);
   // --- End Restore IPC listeners ---
 
+  // --- Global Start/Stop Listeners ---
+  useEffect(() => {
+    if (!instanceId) return;
+
+    console.log(`[TimerPage ${instanceId}] Setting up global start/stop listeners`);
+
+    // Callback for global start: Log receipt. State managed by main process.
+    const handleGlobalStart = () => {
+      console.log(`[TimerPage ${instanceId}] Received global-start-timer event.`);
+      // No need to call startTimer here; main process handles state
+      // and sends update via 'timer-state-update'.
+    };
+
+    // Callback for global stop: Log receipt. State managed by main process.
+    const handleGlobalStop = () => {
+      console.log(`[TimerPage ${instanceId}] Received global-stop-timer event.`);
+      // No need to call pauseTimer here; main process handles state
+      // and sends update via 'timer-state-update'.
+    };
+
+    // Use the newly defined listeners from preload
+    const cleanupStart = window.electronAPI.onGlobalStartTimer(handleGlobalStart);
+    const cleanupStop = window.electronAPI.onGlobalStopTimer(handleGlobalStop);
+
+    return () => {
+      console.log(`[TimerPage ${instanceId}] Cleaning up global start/stop listeners`);
+      // Ensure cleanup functions are called if they exist
+      if (typeof cleanupStart === 'function') cleanupStart();
+      if (typeof cleanupStop === 'function') cleanupStop();
+    };
+
+  }, [instanceId]); // Dependency array includes instanceId
+  // --- End Global Start/Stop Listeners ---
+
   // Recalculate warning state here based on local timerState
   const isFinished = timerState ? timerState.timeLeft <= 0 : false;
   const yellowThreshold = timerState?.preset.yellowThreshold ?? 10;
@@ -104,7 +138,7 @@ export const TimerPage: React.FC = () => {
       {/* Change div to motion.div and add animation props */}
       <motion.div
         key={instanceId} // Add key for AnimatePresence to track
-        className="timer-page-container h-full p-1" // Keep padding, ensure no background class
+        className="timer-page-container h-full p-1 cursor-pointer" // Keep padding, ensure no background class, Add cursor-pointer
         initial={{ opacity: 0, scale: 0.95 }} // Initial state (invisible, slightly smaller)
         animate={{ opacity: 1, scale: 1 }}    // Animate to state (visible, normal size)
         exit={{ opacity: 0, scale: 0.95 }}     // Exit state (invisible, slightly smaller)
