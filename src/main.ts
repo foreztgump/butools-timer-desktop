@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, globalShortcut, screen, shell } from 'electron';
 import path from 'node:path';
+import fs from 'node:fs'; // Import fs
 import type { TimerPreset, ActiveTimer } from './types/timerTypes'; // Import types
 import { timerPresets } from './data/timerPresets'; // Import presets
 import Store from 'electron-store'; // Import electron-store
@@ -26,19 +27,10 @@ const store = new Store<WindowStateStore>({
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
-// Remove environment variable logging
-// console.log('DEV SERVER URL:', process.env.MAIN_WINDOW_VITE_DEV_SERVER_URL);
-// console.log('VITE NAME:', process.env.MAIN_WINDOW_VITE_NAME);
-// console.log('PRELOAD VITE ENTRY:', process.env.MAIN_WINDOW_PRELOAD_VITE_ENTRY);
-
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 // Remove the declarations for Webpack constants
 // declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 // declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
-
-if (require('electron-squirrel-startup')) {
-  app.quit();
-}
 
 // REMOVE Map to store timer windows
 // const timerWindows = new Map<string, BrowserWindow>();
@@ -73,7 +65,7 @@ function sendToTimerWindow(instanceId: string, channel: string, ...args: any[]) 
 
 function startMainInterval() {
   if (mainIntervalId !== null) return; // Already running
-  console.log('[Main] Starting main timer interval.');
+  // console.log('[Main] Starting main timer interval.');
   lastTickTime = performance.now(); // Reset last tick time
   mainIntervalId = setInterval(() => {
     const now = performance.now();
@@ -84,18 +76,19 @@ function startMainInterval() {
     activeTimerStates.forEach((timerState, instanceId) => {
       if (timerState.isRunning) {
         const newTimeLeft = Math.max(timerState.timeLeft - deltaSeconds, 0);
-        timerState.timeLeft = newTimeLeft;
+        timerState.timeLeft = newTimeLeft; // Update the state object in the map
         activeTimersRunning = true;
 
-        // Send updated state to the specific timer window
+        // Revert: Send the full updated state to the specific timer window
         sendToTimerWindow(instanceId, 'timer-state-update', timerState);
 
         if (newTimeLeft === 0) {
           // --- Timer Looping Logic ---
-          console.log(`[Main Interval] Timer ${instanceId} reached zero. Looping.`);
-          timerState.timeLeft = timerState.preset.initialTime; // Reset timeLeft to initial
+          // console.log(`[Main Interval] Timer ${instanceId} reached zero. Looping.`);
+          const initialTime = timerState.preset.initialTime; // Get initial time
+          timerState.timeLeft = initialTime; // Reset timeLeft in the state object
           // DO NOT set isRunning to false
-          // Send another update with the looped time
+          // Revert: Send the full state again with the looped time
           sendToTimerWindow(instanceId, 'timer-state-update', timerState);
           // --- End Looping Logic ---
         }
@@ -111,7 +104,7 @@ function startMainInterval() {
 
 function stopMainInterval() {
   if (mainIntervalId !== null) {
-    console.log('[Main] Stopping main timer interval.');
+    // console.log('[Main] Stopping main timer interval.');
     clearInterval(mainIntervalId);
     mainIntervalId = null;
   }
@@ -120,24 +113,24 @@ function stopMainInterval() {
 // Helper function to broadcast the current global audio state to all windows
 function broadcastGlobalAudioState() {
   const state = { volume: globalVolume, isMuted: globalIsMuted };
-  console.log('[Main Broadcast] Sending global audio state:', state);
+  // console.log('[Main Broadcast] Sending global audio state:', state);
 
   // Send to all active timer windows
   activeTimerWindows.forEach((window, instanceId) => {
     if (window && !window.isDestroyed()) {
-      console.log(`[Main Broadcast] Sending to Timer Window: ${instanceId}`);
+      // console.log(`[Main Broadcast] Sending to Timer Window: ${instanceId}`);
       window.webContents.send('global-audio-state-changed', state);
     } else {
-      console.warn(`[Main Broadcast] Timer window ${instanceId} is destroyed or null.`);
+      // console.warn(`[Main Broadcast] Timer window ${instanceId} is destroyed or null.`);
     }
   });
 
   // Send to the launcher window using the stored reference
   if (launcherWindow && !launcherWindow.isDestroyed()) {
-    console.log('[Main Broadcast] Sending to Launcher Window.');
+    // console.log('[Main Broadcast] Sending to Launcher Window.');
     launcherWindow.webContents.send('global-audio-state-changed', state);
   } else {
-     console.warn('[Main Broadcast] Launcher window reference is null or destroyed.');
+     // console.warn('[Main Broadcast] Launcher window reference is null or destroyed.');
   }
 }
 
@@ -148,16 +141,38 @@ const RENDERER_BASE_URL = app.isPackaged
 
 // --- Function to create the Launcher Window ---
 function createLauncherWindow(): void {
-  console.log('[Main] Creating Launcher window...');
-  // Adjust path for logo.png, assuming public is copied relative to packaged app structure
-  const iconPath = path.join(__dirname, '../../public/logo.png'); 
-  console.log(`[Main] Attempting to load icon from (png path): ${iconPath}`);
+  // console.log('[Main] Creating Launcher window...');
+
+  // Define potential paths
+  const devIconPath = path.join(__dirname, '../../public/logo.png');
+  // Assumes 'public' folder is copied to the root of the app resources in production
+  const prodIconPath = path.join(app.getAppPath(), 'public', 'logo.png'); 
+
+  // Determine the correct path based on environment
+  const iconPath = app.isPackaged ? prodIconPath : devIconPath;
+
+  // Check if the determined path exists, otherwise use a null/default icon (optional)
+  let finalIconPath: string | undefined = undefined;
+  try {
+    if (fs.existsSync(iconPath)) {
+      finalIconPath = iconPath;
+    }
+  } catch (err) {
+    console.error(`[Main] Error checking icon path existence (${iconPath}):`, err);
+  }
+
+  if (!finalIconPath) {
+    console.warn(`[Main] Icon not found at expected path: ${iconPath}. Window will use default icon.`);
+    // Optionally set to null or a default Electron icon path if needed
+  }
+
+  // console.log(`[Main] Attempting to load icon from: ${finalIconPath}`);
 
   // Assign the created window to the global reference
   launcherWindow = new BrowserWindow({
     width: 350, // Keep width relatively narrow
     height: 700, // Increase initial height
-    icon: iconPath, // Set window icon
+    icon: finalIconPath, // Use the validated path or undefined
     autoHideMenuBar: true, // Hide the default menu bar
     alwaysOnTop: false, // Not always on top
     frame: true, // Standard frame
@@ -171,7 +186,7 @@ function createLauncherWindow(): void {
   });
 
   launcherWindow.on('closed', () => {
-    console.log('[Main] Launcher window closed. Clearing reference & Quitting app.');
+    // console.log('[Main] Launcher window closed. Clearing reference & Quitting app.');
     launcherWindow = null; // Clear the reference when closed
     app.quit();
   });
@@ -181,18 +196,18 @@ function createLauncherWindow(): void {
   if (!app.isPackaged) {
     launcherWindow.webContents.openDevTools({ mode: 'detach' });
   }
-  console.log('[Main] Launcher window created.');
+  // console.log('[Main] Launcher window created.');
 }
 
 // --- Function to create individual Timer Windows ---
 function createTimerWindow(timerState: ActiveTimer): void {
   if (activeTimerWindows.has(timerState.instanceId)) {
-    console.warn(`[Main] Timer window already exists for ${timerState.instanceId}. Focusing.`);
+    // console.warn(`[Main] Timer window already exists for ${timerState.instanceId}. Focusing.`);
     activeTimerWindows.get(timerState.instanceId)?.focus();
     return;
   }
 
-  console.log(`[Main] Creating Timer window for ${timerState.instanceId} with state:`, timerState);
+  // console.log(`[Main] Creating Timer window for ${timerState.instanceId} with state:`, timerState);
 
   let timerWindow: BrowserWindow | null = null; // Define outside try block
   try {
@@ -213,11 +228,11 @@ function createTimerWindow(timerState: ActiveTimer): void {
       },
     });
   } catch (error) {
-      console.error(`[Main] !!! Failed to create BrowserWindow for ${timerState.instanceId}:`, error);
+      // console.error(`[Main] !!! Failed to create BrowserWindow for ${timerState.instanceId}:`, error);
       return; // Stop if window creation failed
   }
 
-  console.log(`[Main] BrowserWindow object created for ${timerState.instanceId}. Storing reference.`);
+  // console.log(`[Main] BrowserWindow object created for ${timerState.instanceId}. Storing reference.`);
   activeTimerWindows.set(timerState.instanceId, timerWindow);
 
   // --- Window Event Listeners for State Persistence --- 
@@ -231,7 +246,7 @@ function createTimerWindow(timerState: ActiveTimer): void {
         // Only save if bounds actually changed to minimize writes
         const stored = currentBounds[timerState.preset.id]; // Use preset.id as key
         if (!stored || stored.x !== bounds.x || stored.y !== bounds.y || stored.width !== bounds.width || stored.height !== bounds.height) {
-            console.log(`[Main Store] Saving bounds for preset ${timerState.preset.id}:`, bounds);
+            // console.log(`[Main Store] Saving bounds for preset ${timerState.preset.id}:`, bounds);
             (store as any).set(`windowBounds.${timerState.preset.id}`, bounds); // Use preset.id as key
         }
       }
@@ -244,16 +259,16 @@ function createTimerWindow(timerState: ActiveTimer): void {
   // --- End Window Event Listeners --- 
 
   timerWindow.on('ready-to-show', () => {
-    console.log(`[Main] Window ${timerState.instanceId} is ready-to-show. Showing now.`);
+    // console.log(`[Main] Window ${timerState.instanceId} is ready-to-show. Showing now.`);
     timerWindow?.show();
   });
 
   timerWindow.on('closed', () => {
-    console.log(`[Main] Timer window closed for ${timerState.instanceId}. Cleaning up.`);
+    // console.log(`[Main] Timer window closed for ${timerState.instanceId}. Cleaning up.`);
     
     // Notify the launcher window BEFORE deleting state
     if (launcherWindow && !launcherWindow.isDestroyed()) {
-      console.log(`[Main] Notifying launcher about closed timer: ${timerState.instanceId}`);
+      // console.log(`[Main] Notifying launcher about closed timer: ${timerState.instanceId}`);
       launcherWindow.webContents.send('timer-closed', timerState.instanceId);
     }
 
@@ -277,20 +292,20 @@ function createTimerWindow(timerState: ActiveTimer): void {
 
   // Use hash-based routing with the determined base URL
   const timerUrl = `${RENDERER_BASE_URL}#/timer/${timerState.instanceId}`;
-  console.log(`[Main] Loading URL for timer window ${timerState.instanceId}: ${timerUrl}`);
+  // console.log(`[Main] Loading URL for timer window ${timerState.instanceId}: ${timerUrl}`);
   timerWindow.loadURL(timerUrl)
     .then(() => {
-        console.log(`[Main] Successfully loaded URL for ${timerState.instanceId}`);
+        // console.log(`[Main] Successfully loaded URL for ${timerState.instanceId}`);
         // Optionally force show again if ready-to-show didn't fire or failed
         // if (!timerWindow.isVisible()) { timerWindow.show(); }
          // Automatically open DevTools for debugging this specific window
          if (!app.isPackaged) {
-           console.log(`[Main] Opening DevTools for timer window ${timerState.instanceId}`);
+           // console.log(`[Main] Opening DevTools for timer window ${timerState.instanceId}`);
            timerWindow?.webContents.openDevTools({ mode: 'detach' });
          }
     })
     .catch(err => {
-        console.error(`[Main] !!! Failed to load URL for ${timerState.instanceId}: ${timerUrl}`, err);
+        // console.error(`[Main] !!! Failed to load URL for ${timerState.instanceId}: ${timerUrl}`, err);
         // Clean up if URL loading fails
         activeTimerWindows.delete(timerState.instanceId);
         activeTimerStates.delete(timerState.instanceId);
@@ -304,7 +319,7 @@ function createTimerWindow(timerState: ActiveTimer): void {
 
   // Notify the launcher window about the new timer
   if (launcherWindow && !launcherWindow.isDestroyed()) {
-    console.log(`[Main] Notifying launcher about new timer: ${timerState.instanceId}`);
+    // console.log(`[Main] Notifying launcher about new timer: ${timerState.instanceId}`);
     launcherWindow.webContents.send('timer-created', {
       instanceId: timerState.instanceId,
       title: timerState.preset.title,
@@ -315,12 +330,12 @@ function createTimerWindow(timerState: ActiveTimer): void {
 // --- Function to Create Timer State and Window from Preset ---
 function createTimerFromPreset(preset: TimerPreset | undefined): string | null {
   if (!preset) {
-    console.error('[Main] Attempted to create timer from undefined preset.');
+    // console.error('[Main] Attempted to create timer from undefined preset.');
     return null;
   }
 
   const instanceId = `${preset.id}-${Date.now()}`;
-  console.log(`[Main] Creating timer for preset: ${preset.title}, instanceId: ${instanceId}`);
+  // console.log(`[Main] Creating timer for preset: ${preset.title}, instanceId: ${instanceId}`);
 
   // Define default values (Consider moving these to constants)
   const DEFAULT_TIMER_SIZE = { width: 192, height: 130 };
@@ -336,7 +351,7 @@ function createTimerFromPreset(preset: TimerPreset | undefined): string | null {
   let useDefaultPosition = false;
 
   if (savedBounds) {
-    console.log(`[Main Store] Restoring bounds for preset ${preset.id}:`, savedBounds);
+    // console.log(`[Main Store] Restoring bounds for preset ${preset.id}:`, savedBounds);
     initialWidth = savedBounds.width;
     initialHeight = savedBounds.height;
 
@@ -355,11 +370,11 @@ function createTimerFromPreset(preset: TimerPreset | undefined): string | null {
     });
 
     if (isVisible) {
-      console.log(`[Main Store] Saved bounds for ${preset.id} are visible.`);
+      // console.log(`[Main Store] Saved bounds for ${preset.id} are visible.`);
       initialX = savedBounds.x;
       initialY = savedBounds.y;
     } else {
-      console.warn(`[Main Store] Saved bounds for ${preset.id} are off-screen. Using default position.`);
+      // console.warn(`[Main Store] Saved bounds for ${preset.id} are off-screen. Using default position.`);
       useDefaultPosition = true;
       // Assign default values here if position is invalid, even if size might be used
       initialX = (activeTimerStates.size % 5) * 200;
@@ -368,7 +383,7 @@ function createTimerFromPreset(preset: TimerPreset | undefined): string | null {
     // --- End validation --- 
 
   } else {
-    console.log(`[Main Store] No saved bounds found for preset ${preset.id}. Using default position/size.`);
+    // console.log(`[Main Store] No saved bounds found for preset ${preset.id}. Using default position/size.`);
     useDefaultPosition = true;
     initialWidth = preset.initialSize?.width || DEFAULT_TIMER_SIZE.width;
     initialHeight = preset.initialSize?.height || DEFAULT_TIMER_SIZE.height;
@@ -412,17 +427,17 @@ app.whenReady().then(() => {
   createLauncherWindow();
 
   // --- Register Global IPC Listeners ONCE --- 
-  console.log('[Main] Registering global IPC listeners...');
+  // console.log('[Main] Registering global IPC listeners...');
 
   // Handler to create a new timer instance and its window (Uses refactored function)
   ipcMain.handle('add-timer-request', (event, preset: TimerPreset) => {
-    console.log(`[Main IPC] Received add-timer-request for preset: ${preset.title}`);
+    // console.log(`[Main IPC] Received add-timer-request for preset: ${preset.title}`);
     return createTimerFromPreset(preset);
   });
 
   // Listener to close a specific timer window
   ipcMain.on('close-timer-window', (event, instanceId: string) => {
-    console.log(`[Main IPC] Received close-timer-window for: ${instanceId}`);
+    // console.log(`[Main IPC] Received close-timer-window for: ${instanceId}`);
     const windowToClose = activeTimerWindows.get(instanceId);
     if (windowToClose && !windowToClose.isDestroyed()) {
       windowToClose.destroy(); // Use destroy to bypass close event listeners if needed
@@ -434,7 +449,7 @@ app.whenReady().then(() => {
 
   // Get initial state for a specific timer window
   ipcMain.handle('get-timer-state', (event, instanceId: string): ActiveTimer | null => {
-    console.log(`[Main IPC] Received get-timer-state for: ${instanceId}`);
+    // console.log(`[Main IPC] Received get-timer-state for: ${instanceId}`);
     return activeTimerStates.get(instanceId) || null;
   });
 
@@ -442,7 +457,7 @@ app.whenReady().then(() => {
   ipcMain.on('start-timer', (event, instanceId: string) => {
     const timerState = activeTimerStates.get(instanceId);
     if (timerState && !timerState.isRunning) {
-      console.log(`[Main IPC] Starting timer: ${instanceId}`);
+      // console.log(`[Main IPC] Starting timer: ${instanceId}`);
       timerState.isRunning = true;
       sendToTimerWindow(instanceId, 'timer-state-update', timerState);
       startMainInterval(); // Ensure interval is running
@@ -453,7 +468,7 @@ app.whenReady().then(() => {
   ipcMain.on('pause-timer', (event, instanceId: string) => {
     const timerState = activeTimerStates.get(instanceId);
     if (timerState && timerState.isRunning) {
-      console.log(`[Main IPC] Pausing timer: ${instanceId}`);
+      // console.log(`[Main IPC] Pausing timer: ${instanceId}`);
       timerState.isRunning = false;
       sendToTimerWindow(instanceId, 'timer-state-update', timerState);
       // Interval will stop itself if no timers are running
@@ -467,12 +482,12 @@ app.whenReady().then(() => {
       // --- Corrected Reset Logic --- 
       if (timerState.isRunning) {
         // If timer is running, just reset the time and keep it running
-        console.log(`[Main IPC] Resetting running timer: ${instanceId}`);
+        // console.log(`[Main IPC] Resetting running timer: ${instanceId}`);
         timerState.timeLeft = timerState.preset.initialTime || 0;
         // DO NOT change isRunning state
       } else {
         // If timer is stopped, perform a full reset
-        console.log(`[Main IPC] Resetting stopped timer: ${instanceId}`);
+        // console.log(`[Main IPC] Resetting stopped timer: ${instanceId}`);
         timerState.isRunning = false; // Ensure it's marked as stopped
         timerState.timeLeft = timerState.preset.initialTime || 0;
       }
@@ -488,7 +503,7 @@ app.whenReady().then(() => {
   ipcMain.on('set-timer-audio-mode', (event, { instanceId, mode }: { instanceId: string, mode: string }) => {
     const timerState = activeTimerStates.get(instanceId);
     if (timerState) {
-      console.log(`[Main IPC] Setting audio mode for ${instanceId}: ${mode}`);
+      // console.log(`[Main IPC] Setting audio mode for ${instanceId}: ${mode}`);
       timerState.audioMode = mode;
       sendToTimerWindow(instanceId, 'timer-state-update', timerState);
     }
@@ -499,7 +514,7 @@ app.whenReady().then(() => {
     const timerState = activeTimerStates.get(instanceId);
     if (timerState) {
       const clampedVolume = Math.max(0, Math.min(1, volume));
-      console.log(`[Main IPC] Setting volume for ${instanceId}: ${clampedVolume}`);
+      // console.log(`[Main IPC] Setting volume for ${instanceId}: ${clampedVolume}`);
       timerState.volume = clampedVolume;
       timerState.isMuted = clampedVolume === 0 ? true : timerState.isMuted; // Mute if volume is 0
       sendToTimerWindow(instanceId, 'timer-state-update', timerState);
@@ -510,7 +525,7 @@ app.whenReady().then(() => {
   ipcMain.on('set-timer-mute', (event, { instanceId, muted }: { instanceId: string, muted: boolean }) => {
     const timerState = activeTimerStates.get(instanceId);
     if (timerState) {
-      console.log(`[Main IPC] Setting mute for ${instanceId}: ${muted}`);
+      // console.log(`[Main IPC] Setting mute for ${instanceId}: ${muted}`);
       timerState.isMuted = muted;
       sendToTimerWindow(instanceId, 'timer-state-update', timerState);
     }
@@ -558,7 +573,7 @@ app.whenReady().then(() => {
   ipcMain.on('set-global-volume', (event, volume: number) => {
     const clampedVolume = Math.max(0, Math.min(1, volume));
     if (globalVolume !== clampedVolume) {
-      console.log(`[Main IPC] Received set-global-volume: ${clampedVolume}`);
+      // console.log(`[Main IPC] Received set-global-volume: ${clampedVolume}`);
       globalVolume = clampedVolume;
       // Potentially auto-mute if volume is 0? Decide on desired behavior.
       // if (globalVolume === 0) globalIsMuted = true;
@@ -567,9 +582,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.on('toggle-global-mute', (event) => {
-    console.log(`[Main IPC] Received toggle-global-mute. Current: ${globalIsMuted}`);
+    // console.log(`[Main IPC] Received toggle-global-mute. Current: ${globalIsMuted}`);
     globalIsMuted = !globalIsMuted;
-    console.log(`[Main IPC] New global mute state: ${globalIsMuted}`);
+    // console.log(`[Main IPC] New global mute state: ${globalIsMuted}`);
     broadcastGlobalAudioState(); // Broadcast the change to all windows
   });
 
@@ -581,27 +596,27 @@ app.whenReady().then(() => {
   ipcMain.removeAllListeners('window-minimize');
   ipcMain.removeAllListeners('window-close');
 
-  console.log('[Main] Global IPC listeners registered.');
+  // console.log('[Main] Global IPC listeners registered.');
   // --- End Global IPC Listeners ---
 
   // --- Register Global Keyboard Shortcuts --- 
-  console.log('[Main] Registering global keyboard shortcuts...');
+  // console.log('[Main] Registering global keyboard shortcuts...');
 
   const registerShortcut = (accelerator: string, presetTitle: string) => {
     const success = globalShortcut.register(accelerator, () => {
-      console.log(`[Main Shortcut] ${accelerator} pressed. Finding preset: ${presetTitle}`);
-      console.log('[Main Shortcut] Available presets at time of check:', timerPresets.map(p => p.title)); // Log available titles
+      // console.log(`[Main Shortcut] ${accelerator} pressed. Finding preset: ${presetTitle}`);
+      // console.log('[Main Shortcut] Available presets at time of check:', timerPresets.map(p => p.title)); // Log available titles
       const preset = timerPresets.find(p => p.title === presetTitle);
       if (preset) {
         createTimerFromPreset(preset);
       } else {
-        console.error(`[Main Shortcut] Preset titled "${presetTitle}" not found!`);
+        // console.error(`[Main Shortcut] Preset titled "${presetTitle}" not found!`);
       }
     });
     if (!success) {
-      console.error(`[Main Shortcut] Failed to register shortcut: ${accelerator}`);
+      // console.error(`[Main Shortcut] Failed to register shortcut: ${accelerator}`);
     } else {
-       console.log(`[Main Shortcut] Registered: ${accelerator} -> ${presetTitle}`);
+       // console.log(`[Main Shortcut] Registered: ${accelerator} -> ${presetTitle}`);
     }
   };
 
@@ -626,7 +641,7 @@ app.whenReady().then(() => {
 app.on('will-quit', () => {
   // Unregister all shortcuts.
   globalShortcut.unregisterAll();
-  console.log('[Main] Global shortcuts unregistered.');
+  // console.log('[Main] Global shortcuts unregistered.');
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -645,46 +660,46 @@ app.on('window-all-closed', () => {
 
 // Handle request to get the list of active timers for the launcher
 ipcMain.handle('get-active-timers', () => {
-  console.log('[IPC Handle] get-active-timers invoked');
-  console.log('[IPC Handle] Current activeTimerStates keys:', Array.from(activeTimerStates.keys())); // Log keys
-  console.log('[IPC Handle] Current activeTimerStates values:', Array.from(activeTimerStates.values())); // Log values
+  // console.log('[IPC Handle] get-active-timers invoked');
+  // console.log('[IPC Handle] Current activeTimerStates keys:', Array.from(activeTimerStates.keys())); // Log keys
+  // console.log('[IPC Handle] Current activeTimerStates values:', Array.from(activeTimerStates.values())); // Log values
   const timerList = Array.from(activeTimerStates.values()).map(timer => ({
     instanceId: timer.instanceId,
     title: timer.preset.title,
     // Add other basic info if needed, but keep it minimal
   }));
-  console.log('[IPC Handle] Returning active timers:', timerList);
+  // console.log('[IPC Handle] Returning active timers:', timerList);
   return timerList;
 });
 
 // Handle request to focus a specific timer window
 ipcMain.on('focus-timer-window', (event, instanceId: string) => {
-  console.log(`[IPC On] focus-timer-window received for ${instanceId}`);
+  // console.log(`[IPC On] focus-timer-window received for ${instanceId}`);
   const window = activeTimerWindows.get(instanceId);
   if (window && !window.isDestroyed()) {
-    console.log(`[IPC On] Focusing window ${instanceId}`);
+    // console.log(`[IPC On] Focusing window ${instanceId}`);
     window.focus();
   } else {
-    console.warn(`[IPC On] focus-timer-window: Window ${instanceId} not found or destroyed.`);
+    // console.warn(`[IPC On] focus-timer-window: Window ${instanceId} not found or destroyed.`);
   }
 });
 
 // Handle request to launch a new timer
 ipcMain.handle('launch-timer', (event, preset: TimerPreset) => {
-  console.log(`[IPC Handle] launch-timer received for preset: ${preset.title}`);
+  // console.log(`[IPC Handle] launch-timer received for preset: ${preset.title}`);
   createTimerFromPreset(preset);
 });
 
 // Handle request to open an external URL
 ipcMain.on('open-external-url', (event, url: string) => {
-  console.log(`[IPC On] Received request to open external URL: ${url}`);
+  // console.log(`[IPC On] Received request to open external URL: ${url}`);
   // Basic validation
   if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
     shell.openExternal(url)
       .then(() => console.log(`[Shell] Successfully opened ${url}`))
       .catch(err => console.error(`[Shell] Failed to open ${url}:`, err));
   } else {
-    console.warn(`[IPC On] Invalid or disallowed URL for open-external-url: ${url}`);
+    // console.warn(`[IPC On] Invalid or disallowed URL for open-external-url: ${url}`);
   }
 });
 

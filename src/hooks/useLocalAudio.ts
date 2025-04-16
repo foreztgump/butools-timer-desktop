@@ -70,7 +70,8 @@ export const useLocalAudio = ({ volume, isMuted, globalVolume, globalIsMuted }: 
     // --- End preliminary checks ---
 
     // --- Direct Audio Fetch and Play Logic --- 
-    const audioSrc = `./resources/audio/${soundName}.mp3`;
+    // Path relative to the application root (works in dev and packaged)
+    const audioSrc = `resources/audio/${soundName}.mp3`; 
     console.log(`[useLocalAudio] Attempting to fetch: ${audioSrc}`);
     try {
       const response = await fetch(audioSrc);

@@ -31,23 +31,23 @@ export const LauncherPage: React.FC = () => {
   useEffect(() => {
     api.getActiveTimers()
       .then(timers => {
-        console.log('[LauncherPage] Received active timers:', timers);
+        // console.log('[LauncherPage] Received active timers:', timers);
         setActiveTimers(timers || []); // Ensure it's an array
       })
       .catch(err => {
-        console.error('[LauncherPage] Error fetching active timers:', err);
+        // console.error('[LauncherPage] Error fetching active timers:', err);
         setActiveTimers([]); // Set to empty array on error
       });
 
     // Listener for when a new timer is created
     const cleanupCreated = api.onTimerCreated((event, newTimer) => {
-      console.log('[LauncherPage] Received timer-created:', newTimer);
+      // console.log('[LauncherPage] Received timer-created:', newTimer);
       setActiveTimers(prev => [...prev, newTimer]);
     });
 
     // Listener for when a timer is closed
     const cleanupClosed = api.onTimerClosed((event, closedInstanceId) => {
-      console.log(`[LauncherPage] Received timer-closed: ${closedInstanceId}`);
+      // console.log(`[LauncherPage] Received timer-closed: ${closedInstanceId}`);
       setActiveTimers(prev => prev.filter(t => t.instanceId !== closedInstanceId));
     });
 
@@ -60,26 +60,26 @@ export const LauncherPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    console.log('[LauncherPage] Setting up global audio state listener...');
+    // console.log('[LauncherPage] Setting up global audio state listener...');
     const cleanup = api.onGlobalAudioStateChanged((event, newState) => {
-      console.log(`[LauncherPage] IPC Received: global-audio-state-changed - Volume: ${newState.volume}, Muted: ${newState.isMuted}`);
+      // console.log(`[LauncherPage] IPC Received: global-audio-state-changed - Volume: ${newState.volume}, Muted: ${newState.isMuted}`);
       setStoreGlobalVolume(newState.volume);
       setStoreGlobalIsMuted(newState.isMuted);
     });
     return () => {
-      console.log('[LauncherPage] Cleaning up global audio state listener.');
+      // console.log('[LauncherPage] Cleaning up global audio state listener.');
       cleanup();
     };
   }, [setStoreGlobalVolume, setStoreGlobalIsMuted]);
 
   // Handlers for timer interaction buttons
   const handleFocusTimer = (instanceId: string) => {
-      console.log(`[LauncherPage] Requesting focus for ${instanceId}`);
+      // console.log(`[LauncherPage] Requesting focus for ${instanceId}`);
       api.focusTimerWindow(instanceId); // Needs corresponding preload/main setup
   };
 
   const handleCloseTimer = (instanceId: string) => {
-      console.log(`[LauncherPage] Requesting close for ${instanceId}`);
+      // console.log(`[LauncherPage] Requesting close for ${instanceId}`);
       api.closeTimerWindow(instanceId); // Assumes this already exists in preload/main
       // Optimistically remove from local state
       setActiveTimers(prev => prev.filter(t => t.instanceId !== instanceId));

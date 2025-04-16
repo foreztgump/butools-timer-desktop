@@ -29,11 +29,11 @@ export function AddTimerButton({ size = 'sm', variant = 'outline' }: AddTimerBut
   const [isOpen, setIsOpen] = useState(false);
 
   const handleAddTimer = async (preset: TimerPreset) => {
-    console.log(`[AddTimerButton] Requesting timer for preset: ${preset.title}`);
+    // console.log(`[AddTimerButton] Requesting timer for preset: ${preset.title}`);
     try {
       // Use the Electron API to request a new timer from the main process
       const instanceId = await api.addTimerRequest(preset);
-      console.log(`[AddTimerButton] Main process created timer with ID: ${instanceId}`);
+      // console.log(`[AddTimerButton] Main process created timer with ID: ${instanceId}`);
       setIsOpen(false); // Close dropdown after successful request
     } catch (error) {
         console.error("[AddTimerButton] Error requesting timer:", error);

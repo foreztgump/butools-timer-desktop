@@ -1,6 +1,6 @@
 {
   "name": "butools-electron-timer",
-  "productName": "BuTools-Timer",
+  "productName": "butools-electron-timer",
   "version": "1.0.0",
   "description": "My Electron application description",
   "main": ".vite/build/main.js",
@@ -17,62 +17,6 @@
     "email": "foreztgump#github@slmail.me"
   },
   "license": "MIT",
-  "config": {
-    "forge": {
-      "packagerConfig": {
-        "asar": true,
-        "icon": "build/icon.ico"
-      },
-      "rebuildConfig": {},
-      "makers": [
-        {
-          "name": "@electron-addons/electron-forge-maker-nsis",
-          "config": {}
-        },
-        {
-          "name": "@electron-forge/maker-zip",
-          "platforms": [
-            "darwin"
-          ]
-        },
-        {
-          "name": "@electron-forge/maker-deb",
-          "config": {}
-        },
-        {
-          "name": "@electron-forge/maker-rpm",
-          "config": {}
-        }
-      ],
-      "plugins": [
-        {
-          "name": "@electron-forge/plugin-vite",
-          "config": {
-            "build": [
-              {
-                "entry": "src/main.ts",
-                "config": "vite.main.config.ts"
-              },
-              {
-                "entry": "src/preload.ts",
-                "config": "vite.preload.config.ts"
-              }
-            ],
-            "renderer": [
-              {
-                "name": "main_window",
-                "config": "vite.renderer.config.ts"
-              }
-            ]
-          }
-        },
-        {
-          "name": "@electron-forge/plugin-auto-unpack-natives",
-          "config": {}
-        }
-      ]
-    }
-  },
   "dependencies": {
     "@radix-ui/colors": "^3.0.0",
     "@radix-ui/react-dropdown-menu": "^2.1.7",
@@ -95,12 +39,13 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@electron-addons/electron-forge-maker-nsis": "^7.0.2",
     "@electron-forge/cli": "^7.8.0",
     "@electron-forge/maker-deb": "^7.8.0",
     "@electron-forge/maker-rpm": "^7.8.0",
+    "@electron-forge/maker-squirrel": "^7.8.0",
     "@electron-forge/maker-zip": "^7.8.0",
     "@electron-forge/plugin-auto-unpack-natives": "^7.8.0",
+    "@electron-forge/plugin-fuses": "^7.8.0",
     "@electron-forge/plugin-vite": "^7.8.0",
     "@electron/fuses": "^1.8.0",
     "@types/node": "^22.14.1",

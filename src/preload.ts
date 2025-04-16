@@ -15,11 +15,11 @@ const electronAPI = {
   // --- Timer Window Specific API ---
   closeTimerWindow: (instanceId: string) => ipcRenderer.send('close-timer-window', instanceId),
   getTimerState: (instanceId: string): Promise<ActiveTimer | null> => {
-    console.log('[Preload] getTimerState invoked for:', instanceId);
+    // console.log('[Preload] getTimerState invoked for:', instanceId);
     return ipcRenderer.invoke('get-timer-state', instanceId);
   },
   getActiveTimers: (): Promise<{instanceId: string, title: string}[]> => {
-    console.log('[Preload] getActiveTimers invoked');
+    // console.log('[Preload] getActiveTimers invoked');
     return ipcRenderer.invoke('get-active-timers');
   },
   startTimer: (instanceId: string) => ipcRenderer.send('start-timer', instanceId),
@@ -31,12 +31,13 @@ const electronAPI = {
   updateTimerPosition: (instanceId: string, position: { x: number, y: number }) => ipcRenderer.send('update-timer-position', { instanceId, position }),
   updateTimerSize: (instanceId: string, size: { width: number, height: number }) => ipcRenderer.send('update-timer-size', { instanceId, size }),
   focusTimerWindow: (instanceId: string): void => {
-    console.log(`[Preload] focusTimerWindow invoked for: ${instanceId}`);
+    // console.log(`[Preload] focusTimerWindow invoked for: ${instanceId}`);
     ipcRenderer.send('focus-timer-window', instanceId);
   },
 
   // --- Listener API (Main -> Renderer) ---
   // Listener for state updates (e.g., ticks, control changes)
+  // Revert type back to ActiveTimer
   onTimerStateUpdate: (callback: (event: IpcRendererEvent, timerState: ActiveTimer) => void) => {
     ipcRenderer.on('timer-state-update', callback);
     // Return cleanup function
@@ -49,7 +50,7 @@ const electronAPI = {
 
   // Utility to open external URL
   openExternalUrl: (url: string): void => {
-    console.log(`[Preload] Requesting to open external URL: ${url}`);
+    // console.log(`[Preload] Requesting to open external URL: ${url}`);
     ipcRenderer.send('open-external-url', url);
   },
 

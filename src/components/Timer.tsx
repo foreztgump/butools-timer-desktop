@@ -50,6 +50,7 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
   const playedSoundsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    // Keep audio error log
     if (audioError) console.error(`[Timer ${timer.instanceId}] Audio Error:`, audioError);
   }, [audioError, timer.instanceId]);
 
@@ -88,7 +89,8 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
             }
         }
         if (soundToPlay && soundKey && !playedSoundsRef.current.has(soundKey)) {
-          console.log(`[TimerAudio ${timer.instanceId} Mode: ${timer.audioMode}] Playing sound: ${soundToPlay} (Key: ${soundKey})`);
+          // Comment out the verbose sound playing log
+          // console.log(`[TimerAudio ${timer.instanceId} Mode: ${timer.audioMode}] Playing sound: ${soundToPlay} (Key: ${soundKey})`);
           playAudio(soundToPlay);
           playedSoundsRef.current.add(soundKey);
         }
@@ -100,7 +102,8 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
     // regardless of running state (handles manual reset AND loops).
     if (timer && timer.timeLeft === timer.preset.initialTime) {
       if (playedSoundsRef.current.size > 0) {
-        console.log(`[TimerComponent ${timer.instanceId}] Time reset to initial. Clearing played sounds.`);
+        // Comment out the sound clearing log
+        // console.log(`[TimerComponent ${timer.instanceId}] Time reset to initial. Clearing played sounds.`);
         playedSoundsRef.current.clear();
       }
     }
@@ -169,7 +172,8 @@ const Timer: React.FC<TimerProps> = ({ timer }) => {
       api.resetTimer(timer.instanceId);
        // Clear played sounds immediately on reset click, regardless of running state
        playedSoundsRef.current.clear();
-       console.log(`[TimerComponent ${timer.instanceId}] Reset clicked, cleared played sounds.`);
+       // Comment out the reset log
+       // console.log(`[TimerComponent ${timer.instanceId}] Reset clicked, cleared played sounds.`);
   }, [timer.instanceId]);
   const handleClose = useCallback(() => api.closeTimerWindow(timer.instanceId), [timer.instanceId]);
   const handleMuteToggle = useCallback(() => api.setTimerMute(timer.instanceId, !timer.isMuted), [timer.instanceId, timer.isMuted]);

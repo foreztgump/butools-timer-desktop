@@ -22,11 +22,11 @@ export const TimerPage: React.FC = () => {
       return;
     }
 
-    console.log(`[TimerPage] Fetching initial state for ${instanceId}`);
+    // console.log(`[TimerPage] Fetching initial state for ${instanceId}`);
     window.electronAPI.getTimerState(instanceId)
       .then(initialState => {
         if (initialState) {
-          console.log(`[TimerPage] Received initial state for ${instanceId}:`, initialState);
+          // console.log(`[TimerPage] Received initial state for ${instanceId}:`, initialState);
           setTimerState(initialState);
           setError(null); // Clear previous errors
         } else {
@@ -44,18 +44,19 @@ export const TimerPage: React.FC = () => {
   useEffect(() => {
     if (!instanceId) return;
 
-    console.log(`[TimerPage] Setting up state update listener for ${instanceId}`);
+    // console.log(`[TimerPage] Setting up state update listener for ${instanceId}`);
+    // Revert listener callback to handle full state
     const cleanup = window.electronAPI.onTimerStateUpdate((event, updatedState) => {
       // Only update if the state is for this specific timer instance
       if (updatedState.instanceId === instanceId) {
-        // console.log(`[TimerPage] Received state update for ${instanceId}:`, updatedState.timeLeft); // Noisy
+        // Directly set the full state received from main process
         setTimerState(updatedState);
       }
     });
 
     // Cleanup the listener when the component unmounts or instanceId changes
     return () => {
-      console.log(`[TimerPage] Cleaning up state update listener for ${instanceId}`);
+      // console.log(`[TimerPage] Cleaning up state update listener for ${instanceId}`);
       if (typeof cleanup === 'function') {
           cleanup();
       }
@@ -94,9 +95,8 @@ export const TimerPage: React.FC = () => {
     return <div className="p-1 bg-transparent text-muted-foreground">Loading timer...</div>;
   }
 
-  // Add logging before render
-  // console.log('[TimerPage] Rendering with timerState:', timerState);
-  // console.log('[TimerPage] Current calculated variant:', currentVariant);
+  // Remove the log before render
+  // console.log(`[TimerPage ${instanceId}] State before rendering Timer:`, timerState);
 
   return (
     // Wrap the container with AnimatePresence
